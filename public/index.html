@@ -8,44 +8,241 @@
     body {
       margin: 0;
     }
+    .btn {
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
   </style>
 </head>
 
 <body>
+  <div class="btn">
+    Start
+  </div>
   <script src="js/three.js"></script>
+  <script src="js/mousetrap.js"></script>
   <script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 100);
-    camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-
-    const material2 = new THREE.LineBasicMaterial({ color: 0x0000ff });
-    const points = [];
-    points.push(new THREE.Vector3(- 10, 0, 0));
-    points.push(new THREE.Vector3(0, 10, 0));
-    points.push(new THREE.Vector3(10, 0, 0));
-
-    const geometry2 = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry2, material2);
-    
-    scene.add(line);
-    scene.add(cube);
-
-    // camera.position.z = 5;
-
-    function animate() {
-      requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      renderer.render(scene, camera);
-    }
-    animate();
+    document.querySelector('.btn').addEventListener('click', () => {
+      class GeometryNode {
+        constructor(geometry, rotationRadius, speed, orbitId) {
+          this.geometry_ = geometry
+          this.rotationRadius = rotationRadius
+          this.speed = speed
+          this.offset = 90
+          this.last_x = -1
+          this.last_y = -1
+          this.orbitId_ = orbitId
+          let curve = new THREE.EllipseCurve(
+            0, 0,            // ax, aY
+            rotationRadius, rotationRadius,           // xRadius, yRadius
+            0, 2 * Math.PI,  // aStartAngle, aEndAngle
+            false,            // aClockwise
+            0                 // aRotation
+          );
+          let points_ = curve.getPoints(50);
+          let geometry_ = new THREE.BufferGeometry().setFromPoints(points_);
+          let material_ = new THREE.LineBasicMaterial({ color: 0xff0000 });
+          this.orbit_ = new THREE.Line(geometry_, material_);
+        }
+        get orbitId () {
+          return this.orbitId_
+        }
+        get orbit () {
+          return this.orbit_
+        }
+        get x () {
+          return Math.sin(this.offset / (180 / Math.PI)) * (this.rotationRadius)
+        }
+        get y () {
+          return Math.cos(this.offset / (180 / Math.PI)) * (this.rotationRadius)
+        }
+        get geometry () {
+          return this.geometry_
+        }
+        set geometry (newGeometry) {
+          this.geometry_ = newGeometry
+        }
+        step () {
+          this.last_x = this.x
+          this.last_y = this.y
+          this.offset += this.speed
+          if (this.offset >= 360) {
+            this.offset -= 360
+          }
+          let returned = false
+          if(this.last_x != -1) {
+            if (this.last_x * this.x < 0) {
+              // this.ping()
+            }
+          }
+          if (this.last_y != -1) {
+            if ((this.last_y * this.y < 0)) {
+              this.ping()
+              returned = true
+            }
+          }
+          return returned
+        }
+        ping() {
+          console.log('pinged!')
+        }
+      }
+      class RingGeometryNode {
+        constructor (beginRadius, endRadius, speed, x, y) {
+          this.endRadius = endRadius
+          this.speed = speed
+          this.currentRadius = beginRadius
+          this.x = x
+          this.y = y
+          const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + .3, this.currentRadius * this.currentRadius + 8);
+          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+          this.ring_ = new THREE.Mesh(geometry, material);
+          this.ring_.position.x = this.x
+          this.ring_.position.y = this.y
+        }
+        step () {
+          this.currentRadius += this.speed
+          if (this.currentRadius > this.endRadius) {
+            return true
+          }
+          else {
+            return false
+          }
+        }
+        updateRing () {
+          const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + ((this.endRadius - this.currentRadius) / this.endRadius), 30);
+          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+          this.ring_ = new THREE.Mesh(geometry, material);
+          this.ring_.position.x = this.x
+          this.ring_.position.y = this.y
+        }
+        get ring () {
+          return this.ring_
+        }
+  
+      }
+      // const cameraControl = (camera) => {
+      //   Mousetrap.bind('w', () => {
+      //     camera.position
+      //   })
+      // }
+      const scene = new THREE.Scene();
+      // const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      // camera.position.set(0, 0, 100);
+      // camera.lookAt(0, 0, 0);
+      const camera = new THREE.OrthographicCamera(window.innerWidth / - 10, window.innerWidth / 10, window.innerHeight / 10, window.innerHeight / - 10, -3, 100);
+      // scene.add(camera);
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMapSoft = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      // renderer.physicallyCorrectLights = true
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.body.appendChild(renderer.domElement);
+  
+      const ambientLight = new THREE.AmbientLight(0x707070, 2); // soft white light
+      
+      const mainLight = new THREE.PointLight(0xcccccc, 5, 100);
+      mainLight.position.set(0, 0, 0);
+      mainLight.castShadow = true;
+      mainLight.shadow.radius = 8;
+      
+      scene.add(ambientLight);
+      // scene.add(mainLight);
+  
+  
+      const geometry = new THREE.BufferGeometry();
+      const vertices = [];
+  
+      for (let i = 0; i < 10000; i++) {
+  
+        vertices.push(THREE.MathUtils.randFloatSpread(300)); // x
+        vertices.push(THREE.MathUtils.randFloatSpread(300)); // y
+        vertices.push(THREE.MathUtils.randFloatSpread(300)); // z
+  
+      }
+  
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  
+      const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x888888 }));
+      scene.add(particles);
+  
+      const listener = new THREE.AudioListener();
+      camera.add(listener);
+  
+      let buffer
+      let audioLoader = new THREE.AudioLoader();
+      audioLoader.load('media/ding.ogg', function (bfr) {
+        buffer = bfr
+      })
+  
+  
+      // const composer = new EffectComposer(renderer);
+      // const renderPass = new RenderPass(scene, camera);
+      // composer.addPass(renderPass);
+      // effectFXAA = new ShaderPass(FXAAShader);
+      // effectFXAA.uniforms['resolution'].value.x = 1 / (window.innerWidth * pixelRatio);
+      // effectFXAA.uniforms['resolution'].value.y = 1 / (window.innerHeight * pixelRatio);
+      // composer.addPass(effectFXAA);
+      // orbitControls = new OrbitControls(camera, renderer.domElement);
+      // orbitControls.update();
+      const rings = []
+      const cubes = []
+      let arr = [0, 0, 0, 0, 0, 0, 0, 0]
+      arr.forEach((elem, index) => {
+        const geometry = new THREE.SphereGeometry(2, 32, 32);
+        const material = new THREE.MeshStandardMaterial({ color: 0x94faff });
+        material.roughness = 0
+        material.reflectionRatio = .99
+        let tmp = new GeometryNode(new THREE.Mesh(geometry, material), index * 10 + 10, 4 / (index + 1), index)
+        
+        cubes.push(tmp)
+      })
+  
+      cubes.forEach(elem => {
+        scene.add(elem.geometry);
+        scene.add(elem.orbit)
+      })
+  
+      // camera.position.z = 5;
+      let offset = 0.0
+      const R = 4
+      function animate() {
+        requestAnimationFrame(animate);
+        cubes.forEach((elem) => {
+          elem.geometry.rotation.x += 0.01;
+          elem.geometry.rotation.y += 0.01;
+          elem.geometry.position.x = elem.x
+          elem.geometry.position.y = elem.y
+          let isPing = elem.step()
+          if (isPing) {
+            rings.push(new RingGeometryNode(.2, 4, .1, elem.x, elem.y))
+            let sound = new THREE.Audio(listener);
+            sound.setBuffer(buffer);
+            sound.setLoop(false);
+            sound.setVolume(0.5);
+            sound.detune = 1200 - 100 * elem.orbitId
+            sound.play();
+          }
+        })
+        rings.forEach((elem, index, arr) => {
+          scene.remove(elem.ring)
+          let isFinished = elem.step()
+          if (isFinished) {
+            delete arr[index]
+          }
+          else{
+            elem.updateRing()
+            scene.add(elem.ring)
+          }
+        })
+        // composer.render()
+        renderer.render(scene, camera);
+      }
+      animate();
+    })
   </script>
 </body>
 
