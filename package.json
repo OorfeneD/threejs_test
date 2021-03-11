@@ -1,0 +1,25 @@
+{
+  "name": "threejs_test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OorfeneD/threejs_test.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/OorfeneD/threejs_test/issues"
+  },
+  "homepage": "https://github.com/OorfeneD/threejs_test#readme",
+  "dependencies": {
+    "fastify": "^3.14.0",
+    "fastify-static": "^4.0.1"
+  }
+}
