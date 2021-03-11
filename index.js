@@ -19,5 +19,6 @@ fastify.get('/media/ding.ogg', function (req, reply) {
 })
 fastify.listen(process.env.PORT, (err, address) => {
   if (err) throw err
+  console.log('Started')
   fastify.log.info(`server listening on ${address}`)
 })
