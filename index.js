@@ -1,3 +1,4 @@
+const dotenv = require('dotenv')
 const fastify = require('fastify')()
 const path = require('path')
 
@@ -17,8 +18,11 @@ fastify.get('/js/mousetrap.js', function (req, reply) {
 fastify.get('/media/ding.ogg', function (req, reply) {
   return reply.sendFile('media/ding.ogg')
 })
-fastify.listen(process.env.PORT, (err, address) => {
+fastify.get('/media/noty-do.ogg', function (req, reply) {
+  return reply.sendFile('media/noty-do.ogg')
+})
+fastify.listen(3307, (err, address) => {
   if (err) throw err
-  console.log('Started')
+  console.log('Started on ' + process.env.PORT)
   fastify.log.info(`server listening on ${address}`)
 })

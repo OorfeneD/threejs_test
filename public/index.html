@@ -42,7 +42,7 @@
           );
           let points_ = curve.getPoints(50);
           let geometry_ = new THREE.BufferGeometry().setFromPoints(points_);
-          let material_ = new THREE.LineBasicMaterial({ color: 0xff0000 });
+          let material_ = new THREE.LineBasicMaterial({ color: 0xffae00, transparent: true, opacity: .5 });
           this.orbit_ = new THREE.Line(geometry_, material_);
         }
         get orbitId () {
@@ -95,11 +95,8 @@
           this.currentRadius = beginRadius
           this.x = x
           this.y = y
-          const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + .3, this.currentRadius * this.currentRadius + 8);
-          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
-          this.ring_ = new THREE.Mesh(geometry, material);
-          this.ring_.position.x = this.x
-          this.ring_.position.y = this.y
+          this.ring_ = null
+          this.updateRing()
         }
         step () {
           this.currentRadius += this.speed
@@ -112,7 +109,7 @@
         }
         updateRing () {
           const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + ((this.endRadius - this.currentRadius) / this.endRadius), 30);
-          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+          const material = new THREE.MeshBasicMaterial({ color: 0xffae00, side: THREE.DoubleSide, transparent: true, opacity: (this.endRadius - this.currentRadius) / this.endRadius });
           this.ring_ = new THREE.Mesh(geometry, material);
           this.ring_.position.x = this.x
           this.ring_.position.y = this.y
@@ -142,16 +139,19 @@
       renderer.setPixelRatio(window.devicePixelRatio);
       document.body.appendChild(renderer.domElement);
   
-      const ambientLight = new THREE.AmbientLight(0x707070, 2); // soft white light
+      const ambientLight = new THREE.AmbientLight(0x707070, 1);
       
-      const mainLight = new THREE.PointLight(0xcccccc, 5, 100);
+      const mainLight = new THREE.PointLight(0xcccccc, 1, 100);
       mainLight.position.set(0, 0, 0);
       mainLight.castShadow = true;
       mainLight.shadow.radius = 8;
       
       scene.add(ambientLight);
       // scene.add(mainLight);
-  
+      const fog = new THREE.Fog(0xffae00, 10, -20)
+      scene.fog = fog
+
+
   
       const geometry = new THREE.BufferGeometry();
       const vertices = [];
@@ -174,7 +174,7 @@
   
       let buffer
       let audioLoader = new THREE.AudioLoader();
-      audioLoader.load('media/ding.ogg', function (bfr) {
+      audioLoader.load('media/noty-do.ogg', function (bfr) {
         buffer = bfr
       })
   
@@ -193,10 +193,10 @@
       let arr = [0, 0, 0, 0, 0, 0, 0, 0]
       arr.forEach((elem, index) => {
         const geometry = new THREE.SphereGeometry(2, 32, 32);
-        const material = new THREE.MeshStandardMaterial({ color: 0x94faff });
+        const material = new THREE.MeshLambertMaterial({ color: 0x94faff });
         material.roughness = 0
         material.reflectionRatio = .99
-        let tmp = new GeometryNode(new THREE.Mesh(geometry, material), index * 10 + 10, 4 / (index + 1), index)
+        let tmp = new GeometryNode(new THREE.Mesh(geometry, material), index * 10 + 10, 2 / (index + 1), index)
         
         cubes.push(tmp)
       })
@@ -222,8 +222,9 @@
             let sound = new THREE.Audio(listener);
             sound.setBuffer(buffer);
             sound.setLoop(false);
-            sound.setVolume(0.5);
-            sound.detune = 1200 - 100 * elem.orbitId
+            sound.setVolume(0.1);
+            // sound.detune = 171.42 * elem.orbitId
+            sound.detune = 400 * elem.orbitId
             sound.play();
           }
         })
