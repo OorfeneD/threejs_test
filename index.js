@@ -6,6 +6,9 @@ fastify.register(require('fastify-static'), {
   root: path.join(__dirname, 'public'),
   prefix: '/public/', // optional: default '/'
 })
+fastify.get('/three/*', (req, reply) => {
+  return reply.sendFile('node_modules/' + req.url)
+})
 fastify.get('/*', (req, reply) => {
   return reply.sendFile(req.url)
 })
@@ -23,9 +26,6 @@ fastify.get('/*', (req, reply) => {
 // })
 // fastify.get('/media/noty-do.ogg', function (req, reply) {
 //   return reply.sendFile('media/noty-do.ogg')
-// })
-// fastify.get('/three/*', (req, reply) => {
-//   return reply.sendFile(req.url)
 // })
 fastify.listen(3307, (err, address) => {
   if (err) throw err
