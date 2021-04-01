@@ -20,9 +20,46 @@
   <div class="btn">
     Start
   </div>
+  <script type="x-shader/x-vertex" id="vertexshader">
+
+    varying vec2 vUv;
+
+    void main() {
+
+      vUv = uv;
+
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+    }
+
+  </script>
+
+  <script type="x-shader/x-fragment" id="fragmentshader">
+
+    uniform sampler2D baseTexture;
+    uniform sampler2D bloomTexture;
+
+    varying vec2 vUv;
+
+    void main() {
+
+      gl_FragColor = ( texture2D( baseTexture, vUv ) + vec4( 1.0 ) * texture2D( bloomTexture, vUv ) );
+
+    }
+
+  </script>
   <script src="js/three.js"></script>
   <script src="js/mousetrap.js"></script>
-  <script>
+  <script type="module">
+
+    import { OrbitControls } from './three/examples/jsm/controls/OrbitControls.js';
+    import { EffectComposer } from './three/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from './three/examples/jsm/postprocessing/RenderPass.js';
+    import { ShaderPass } from './three/examples/jsm/postprocessing/ShaderPass.js';
+    import { UnrealBloomPass } from './three/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import { CopyShader } from './three/examples/jsm/shaders/CopyShader.js';
+    import { FXAAShader } from './three/examples/jsm/shaders/FXAAShader.js';
+
     document.querySelector('.btn').addEventListener('click', () => {
       class GeometryNode {
         constructor(geometry, rotationRadius, speed, orbitId) {
@@ -40,9 +77,9 @@
             false,            // aClockwise
             0                 // aRotation
           );
-          let points_ = curve.getPoints(50);
+          let points_ = curve.getPoints(30 * ((orbitId * .2) + 1));
           let geometry_ = new THREE.BufferGeometry().setFromPoints(points_);
-          let material_ = new THREE.LineBasicMaterial({ color: 0xff0000 });
+          let material_ = new THREE.LineBasicMaterial({ color: 0xffce44, transparent: true, opacity: .9 });
           this.orbit_ = new THREE.Line(geometry_, material_);
         }
         get orbitId () {
@@ -95,11 +132,8 @@
           this.currentRadius = beginRadius
           this.x = x
           this.y = y
-          const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + .3, this.currentRadius * this.currentRadius + 8);
-          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
-          this.ring_ = new THREE.Mesh(geometry, material);
-          this.ring_.position.x = this.x
-          this.ring_.position.y = this.y
+          this.ring_ = null
+          this.updateRing()
         }
         step () {
           this.currentRadius += this.speed
@@ -112,7 +146,7 @@
         }
         updateRing () {
           const geometry = new THREE.RingGeometry(this.currentRadius, this.currentRadius + ((this.endRadius - this.currentRadius) / this.endRadius), 30);
-          const material = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+          const material = new THREE.MeshBasicMaterial({ color: 0xffd500, side: THREE.DoubleSide, transparent: true, opacity: (this.endRadius - this.currentRadius) / this.endRadius });
           this.ring_ = new THREE.Mesh(geometry, material);
           this.ring_.position.x = this.x
           this.ring_.position.y = this.y
@@ -131,8 +165,8 @@
       // const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       // camera.position.set(0, 0, 100);
       // camera.lookAt(0, 0, 0);
-      const camera = new THREE.OrthographicCamera(window.innerWidth / - 10, window.innerWidth / 10, window.innerHeight / 10, window.innerHeight / - 10, -3, 100);
       // scene.add(camera);
+      const camera = new THREE.OrthographicCamera(window.innerWidth / - 10, window.innerWidth / 10, window.innerHeight / 10, window.innerHeight / - 10, -20, 100);
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.shadowMap.enabled = true;
       renderer.shadowMapSoft = true;
@@ -141,17 +175,21 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(window.devicePixelRatio);
       document.body.appendChild(renderer.domElement);
-  
-      const ambientLight = new THREE.AmbientLight(0x707070, 2); // soft white light
+      renderer.toneMapping = THREE.ReinhardToneMapping;
+
+      const ambientLight = new THREE.AmbientLight(0x707070, 1);
       
-      const mainLight = new THREE.PointLight(0xcccccc, 5, 100);
+      const mainLight = new THREE.PointLight(0xffffff, 5, 100);
       mainLight.position.set(0, 0, 0);
       mainLight.castShadow = true;
       mainLight.shadow.radius = 8;
       
       scene.add(ambientLight);
-      // scene.add(mainLight);
-  
+      scene.add(mainLight);
+      // const fog = new THREE.Fog(0xffae00, 10, -20)
+      // scene.fog = fog
+
+
   
       const geometry = new THREE.BufferGeometry();
       const vertices = [];
@@ -165,8 +203,10 @@
       }
   
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  
+
       const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x888888 }));
+      particles.layers.disable(1)
+      particles.layers.enable(31)
       scene.add(particles);
   
       const listener = new THREE.AudioListener();
@@ -174,34 +214,89 @@
   
       let buffer
       let audioLoader = new THREE.AudioLoader();
-      audioLoader.load('media/ding.ogg', function (bfr) {
+      audioLoader.load('media/noty-do.ogg', function (bfr) {
         buffer = bfr
       })
   
-  
-      // const composer = new EffectComposer(renderer);
-      // const renderPass = new RenderPass(scene, camera);
-      // composer.addPass(renderPass);
-      // effectFXAA = new ShaderPass(FXAAShader);
-      // effectFXAA.uniforms['resolution'].value.x = 1 / (window.innerWidth * pixelRatio);
-      // effectFXAA.uniforms['resolution'].value.y = 1 / (window.innerHeight * pixelRatio);
-      // composer.addPass(effectFXAA);
-      // orbitControls = new OrbitControls(camera, renderer.domElement);
-      // orbitControls.update();
+      const ENTIRE_SCENE = 0, BLOOM_SCENE = 1;
+
+      const bloomLayer = new THREE.Layers();
+      bloomLayer.set( BLOOM_SCENE );
+
+      const params = {
+        exposure: 1,
+        bloomStrength: 5,
+        bloomThreshold: .05,
+        bloomRadius: .5,
+        scene: "Scene with Glow"
+      };
+
+      const renderScene = new RenderPass( scene, camera );
+      const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+      bloomPass.threshold = params.bloomThreshold;
+      bloomPass.strength = params.bloomStrength;
+      bloomPass.radius = params.bloomRadius;
+
+      // let composer = new EffectComposer( renderer );
+      // composer.addPass( renderScene );
+      // composer.addPass( bloomPass );
+      const bloomComposer = new EffectComposer( renderer );
+			bloomComposer.renderToScreen = true;
+			bloomComposer.addPass( renderScene );
+			bloomComposer.addPass( bloomPass );
+
+      let fxaaPass = new ShaderPass( FXAAShader );
+
+      const pixelRatio = renderer.getPixelRatio();
+
+      fxaaPass.material.uniforms[ 'resolution' ].value.x = 1 / ( window.innerWidth * pixelRatio );
+      fxaaPass.material.uniforms[ 'resolution' ].value.y = 1 / ( window.innerHeight * pixelRatio );
+      console.dir(fxaaPass.material)
+
+      let composer1 = new EffectComposer( renderer );
+      composer1.addPass( renderScene );
+      composer1.addPass( fxaaPass );
+      composer1.addPass( bloomPass );
+
+			const finalPass = new ShaderPass(
+				new THREE.ShaderMaterial( {
+					uniforms: {
+						baseTexture: { value: null },
+						bloomTexture: { value: bloomComposer.renderTarget2.texture }
+					},
+					vertexShader: document.getElementById( 'vertexshader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+					defines: {}
+				} ), "baseTexture"
+			);
+			finalPass.needsSwap = true;
+
+			const finalComposer = new EffectComposer( renderer );
+			finalComposer.addPass( renderScene );
+			finalComposer.addPass( finalPass );
+
+      const controls = new OrbitControls( camera, renderer.domElement );
+      controls.maxPolarAngle = Math.PI * 0.5;
+      controls.minDistance = 1;
+      controls.maxDistance = 100;
+
       const rings = []
       const cubes = []
-      let arr = [0, 0, 0, 0, 0, 0, 0, 0]
+      let arr = [0, 0, 0, 0, 0, 0, 0]
       arr.forEach((elem, index) => {
         const geometry = new THREE.SphereGeometry(2, 32, 32);
-        const material = new THREE.MeshStandardMaterial({ color: 0x94faff });
+        const material = new THREE.MeshLambertMaterial({ color: 0xff5500 });
         material.roughness = 0
         material.reflectionRatio = .99
-        let tmp = new GeometryNode(new THREE.Mesh(geometry, material), index * 10 + 10, 4 / (index + 1), index)
+        let tmp = new GeometryNode(new THREE.Mesh(geometry, material), index * 10 + 10, 2 / (index + 1), index)
         
         cubes.push(tmp)
       })
   
       cubes.forEach(elem => {
+        elem.geometry.layers.enable(BLOOM_SCENE)
+        elem.orbit.layers.enable(ENTIRE_SCENE)
+        console.dir(elem.orbit)
         scene.add(elem.geometry);
         scene.add(elem.orbit)
       })
@@ -222,8 +317,9 @@
             let sound = new THREE.Audio(listener);
             sound.setBuffer(buffer);
             sound.setLoop(false);
-            sound.setVolume(0.5);
-            sound.detune = 1200 - 100 * elem.orbitId
+            sound.setVolume(0.1);
+            // sound.detune = 171.42 * elem.orbitId
+            sound.detune = 100 * elem.orbitId
             sound.play();
           }
         })
@@ -239,7 +335,11 @@
           }
         })
         // composer.render()
-        renderer.render(scene, camera);
+        // renderer.render(scene, camera);
+        camera.layers.set( 0 );
+        finalComposer.render()
+        // bloomComposer.render()
+        composer1.render()
       }
       animate();
     })
